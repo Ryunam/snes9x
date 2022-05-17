@@ -62,6 +62,7 @@ bool g_geometry_update = false;
 int hires_blend = 0;
 bool randomize_memory = false;
 int disabled_channels = 0;
+uint32 overclock_wait_frames = 0;
 
 char retro_system_directory[4096];
 char retro_save_directory[4096];
@@ -422,6 +423,13 @@ static void update_variables(void)
     else
         Settings.InterpolationMethod = DSP_INTERPOLATION_GAUSSIAN;
 
+    overclock_wait_frames = 0;
+    var.key="snes9x_overclock_wait";
+    var.value=NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    {
+        overclock_wait_frames = atoi(var.value);
+    }
 
     Settings.OneClockCycle      = 6;
     Settings.OneSlowClockCycle  = 8;
@@ -429,7 +437,9 @@ static void update_variables(void)
 
     var.key="snes9x_overclock_cycles";
     var.value=NULL;
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    if ((environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) &&
+        ((IPPU.TotalEmulatedFrames >= overclock_wait_frames) ||
+        (overclock_wait_frames == 0)))
     {
         if (strcmp(var.value, "max") == 0)
         {
@@ -448,6 +458,12 @@ static void update_variables(void)
             Settings.OneClockCycle      = 6;
             Settings.OneSlowClockCycle  = 6;
             Settings.TwoClockCycles     = 12;
+        }
+        else if (strcmp(var.value, "slow") == 0)
+        {
+            Settings.OneClockCycle      = 30;
+            Settings.OneSlowClockCycle  = 30;
+            Settings.TwoClockCycles     = 30;
         }
     }
 
@@ -1975,7 +1991,8 @@ void retro_run()
 {
     static uint16 height = PPU.ScreenHeight;
     bool updated = false;
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+    if ((environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) ||
+        (IPPU.TotalEmulatedFrames == overclock_wait_frames))
         update_variables();
 
     if (g_geometry_update || height != PPU.ScreenHeight)

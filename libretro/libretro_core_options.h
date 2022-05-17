@@ -226,9 +226,30 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { "light",      "Light" },
          { "compatible", "Compatible" },
          { "max",        "Max" },
+         { "slow",       "Slow (Test)" },
          { NULL, NULL },
       },
       "disabled"
+   },
+   {
+      "snes9x_overclock_wait",
+      "Delay Overclock Activation at Startup",
+      NULL,
+      "Defines whether the slowdown reduction achieved by overclocking the SNES CPU should be delayed by the specified amount of frames after content is loaded. May help prevent overclock-related glitches at startup in some games (for instance, Secret of Mana).",
+      NULL,
+      "hacks",
+      {
+         { "0",  "disabled"         },
+         { "1",  "Wait 1 Frame"     },
+         { "30", "Wait 30 Frames"   },
+         { "60", "Wait 60 Frames"   },
+         { "120", "Wait 120 Frames" },
+         { "240", "Wait 240 Frames" },
+         { "480", "Wait 480 Frames" },
+         { "600", "Wait 600 Frames" },
+         { NULL, NULL },
+      },
+      "0"
    },
    {
       "snes9x_reduce_sprite_flicker",
