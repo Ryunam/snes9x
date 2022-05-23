@@ -115,11 +115,11 @@ struct retro_core_option_v2_definition option_defs_us[] = {
       NULL,
       NULL,
       {
-         { "enabled",     "~8 Pixels"},
-         { "12_pixels",   "12 Pixels" },
-         { "16_pixels",   "16 Pixels" },
-         { "auto",        "Auto (~8 Pixels)" },
-         { "disabled",    NULL },
+         { "enabled",   "~8 Pixels" },
+         { "12_pixels", "12 Pixels" },
+         { "16_pixels", "16 Pixels" },
+         { "auto",      "Auto (~8 Pixels)" },
+         { "disabled",  NULL },
          { NULL, NULL },
       },
       "enabled"
@@ -229,6 +229,30 @@ struct retro_core_option_v2_definition option_defs_us[] = {
          { NULL, NULL },
       },
       "disabled"
+   },
+   {
+      "snes9x_overclock_wait",
+      "Delay Overclock Activation at Startup",
+      NULL,
+      "Defines whether the slowdown reduction achieved by overclocking the SNES CPU should be delayed by the specified amount of frames after content is loaded. May help prevent overclock-related glitches at startup in some games (for instance, Secret of Mana).",
+      NULL,
+      "hacks",
+      {
+         { "0",  "disabled"         },
+         { "1",  "Wait 1 Frame"     },
+         { "60", "Wait 60 Frames"   },
+         { "120", "Wait 120 Frames" },
+         { "180", "Wait 180 Frames" },
+         { "240", "Wait 240 Frames" },
+         { "300", "Wait 300 Frames" },
+         { "360", "Wait 360 Frames" },
+         { "420", "Wait 420 Frames" },
+         { "480", "Wait 480 Frames" },
+         { "540", "Wait 540 Frames" },
+         { "600", "Wait 600 Frames" },
+         { NULL, NULL },
+      },
+      "1"
    },
    {
       "snes9x_reduce_sprite_flicker",

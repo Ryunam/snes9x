@@ -62,6 +62,9 @@ bool g_geometry_update = false;
 int hires_blend = 0;
 bool randomize_memory = false;
 int disabled_channels = 0;
+bool overclock_applied = false;
+uint32 overclock_wait_frames = 0;
+uint32 total_frames_after_reset = 0;
 
 char retro_system_directory[4096];
 char retro_save_directory[4096];
@@ -383,7 +386,6 @@ static void update_variables(void)
     }
     S9xSetSoundControl(disabled_channels^0xFF);
 
-
     int disabled_layers=0;
     strcpy(key, "snes9x_layer_x");
     for (int i=0;i<5;i++)
@@ -422,6 +424,11 @@ static void update_variables(void)
     else
         Settings.InterpolationMethod = DSP_INTERPOLATION_GAUSSIAN;
 
+    overclock_wait_frames = 0;
+    var.key="snes9x_overclock_wait";
+    var.value=NULL;
+    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+        overclock_wait_frames = atoi(var.value);
 
     Settings.OneClockCycle      = 6;
     Settings.OneSlowClockCycle  = 8;
@@ -429,26 +436,33 @@ static void update_variables(void)
 
     var.key="snes9x_overclock_cycles";
     var.value=NULL;
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value)
+    if ((environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) &&
+        ((overclock_wait_frames == 0) ||
+        ((IPPU.TotalEmulatedFrames - total_frames_after_reset) >= overclock_wait_frames)))
     {
         if (strcmp(var.value, "max") == 0)
         {
             Settings.OneClockCycle      = 3;
             Settings.OneSlowClockCycle  = 3;
             Settings.TwoClockCycles     = 3;
+            overclock_applied = true;
         }
         else if (strcmp(var.value, "compatible") == 0)
         {
             Settings.OneClockCycle      = 4;
             Settings.OneSlowClockCycle  = 5;
             Settings.TwoClockCycles     = 6;
+            overclock_applied = true;
         }
         else if (strcmp(var.value, "light") == 0)
         {
             Settings.OneClockCycle      = 6;
             Settings.OneSlowClockCycle  = 6;
             Settings.TwoClockCycles     = 12;
+            overclock_applied = true;
         }
+        else
+            overclock_applied = false;
     }
 
     Settings.MaxSpriteTilesPerLine = 34;
@@ -893,7 +907,16 @@ unsigned retro_api_version()
 
 void retro_reset()
 {
+    if ((overclock_wait_frames > 0) &&
+        (overclock_applied))
+    {
+        Settings.OneClockCycle      = 6;
+        Settings.OneSlowClockCycle  = 8;
+        Settings.TwoClockCycles     = 12;
+    }
+
     S9xSoftReset();
+    total_frames_after_reset = IPPU.TotalEmulatedFrames;
 }
 
 static unsigned snes_devices[8];
@@ -1971,11 +1994,29 @@ static void report_buttons()
     }
 }
 
+void MDFND_DispMessage(
+      unsigned priority, enum retro_log_level level,
+      enum retro_message_target target, enum retro_message_type type,
+      const char *str)
+{
+    struct retro_message_ext msg = {
+        str,
+        3000,
+        priority,
+        level,
+        target,
+        type,
+        -1
+    };
+    environ_cb(RETRO_ENVIRONMENT_SET_MESSAGE_EXT, &msg);
+}
+
 void retro_run()
 {
     static uint16 height = PPU.ScreenHeight;
     bool updated = false;
-    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
+    if ((environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated) ||
+        ((IPPU.TotalEmulatedFrames - total_frames_after_reset) == overclock_wait_frames))
         update_variables();
 
     if (g_geometry_update || height != PPU.ScreenHeight)
@@ -1983,6 +2024,32 @@ void retro_run()
         update_geometry();
         height = PPU.ScreenHeight;
     }
+
+    char msg_buffer[128];
+    msg_buffer[0] = '\0';
+
+    if (Settings.OneSlowClockCycle != 8)
+    {
+    snprintf(msg_buffer, sizeof(msg_buffer),
+        "Overclock ON. \n"
+        "Total frames: %u \n"
+        "Frames after reset: %u",
+        IPPU.TotalEmulatedFrames,
+        total_frames_after_reset);
+    }
+    else if (Settings.OneSlowClockCycle == 8)
+    {
+    snprintf(msg_buffer, sizeof(msg_buffer),
+        "Overclock OFF. \n"
+        "Total frames: %u \n"
+        "Frames after reset: %u",
+        IPPU.TotalEmulatedFrames,
+        total_frames_after_reset);
+    }
+
+    MDFND_DispMessage(1, RETRO_LOG_INFO,
+        RETRO_MESSAGE_TARGET_OSD, RETRO_MESSAGE_TYPE_STATUS,
+        msg_buffer);
 
     int result = -1;
     bool okay = environ_cb(RETRO_ENVIRONMENT_GET_AUDIO_VIDEO_ENABLE, &result);
